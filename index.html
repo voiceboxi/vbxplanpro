@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Pro - Gestionnaire de Planning</title>
+    <meta name="description" content="Application de planning annuel avec cycle de 8 jours">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root {
+            --repos: #58d68d;
+            --travail: #faef03;
+            --formation: #FFC300;
+            --conges: #c443f5;
+            --maladie: #ffffff;
+            --today-border: #ff0000;
+            --hover: #e0e0e0;
+            --modal-bg: rgba(0, 0, 0, 0.5);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .year-selector {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        button {
+            padding: 0.5rem 1rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .month {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+        }
+        
+        .month-header {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem;
+        }
+        
+        .day-header {
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            padding: 0.25rem;
+        }
+        
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            padding: 0.25rem;
+            font-size: 0.85rem;
+        }
+        
+        .day:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 2px var(--hover);
+        }
+        
+        .day.today {
+            box-shadow: 0 0 0 2px var(--today-border);
+        }
+        
+        .day-note {
+            font-size: 0.7rem;
+            margin-top: 0.25rem;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--modal-bg);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .color-options {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-option.selected {
+            border-color: #2c3e50;
+        }
+        
+        .notes-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            color: #7f8c8d;
+            border-top: 1px solid #eee;
+        }
+
+        /* Styles pour l'export PDF */
+        .pdf-export {
+            display: none;
+        }
+
+        .pdf-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .pdf-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+        }
+
+        .pdf-calendar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10mm;
+            margin-bottom: 20px;
+        }
+
+        .pdf-month {
+            break-inside: avoid;
+        }
+
+        .pdf-month-header {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 5px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .pdf-days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            font-size: 9px;
+        }
+
+        .pdf-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ddd;
+            padding: 1px;
+        }
+
+        .pdf-day-number {
+            font-weight: bold;
+        }
+
+        .pdf-day-note {
+            font-size: 6px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        .pdf-legend {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            font-size: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .calendar {
+                grid-template-columns: 1fr;
+            }
+            
+            .export-buttons {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Planning Pro</h1>
+        <p>Gestionnaire de planning annuel avec cycle de 8 jours (5 travail / 3 repos)</p>
+    </header>
+    
+    <div class="container">
+        <div class="toolbar">
+            <div class="year-selector">
+                <button id="prev-year">←</button>
+                <h2 id="current-year">2025</h2>
+                <button id="next-year">→</button>
+                <button id="today-btn">Aujourd'hui</button>
+            </div>
+            
+            <div class="export-buttons">
+                <button id="export-excel">Exporter Excel</button>
+                <button id="export-pdf">Exporter PDF</button>
+                <button id="share-link">Partager</button>
+            </div>
+        </div>
+        
+        <div class="calendar" id="calendar">
+            <!-- Les mois seront générés dynamiquement par JavaScript -->
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: var(--repos);"></div>
+                <span>Repos</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: var(--travail);"></div>
+                <span>Travail</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: var(--formation);"></div>
+                <span>Formation</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: var(--conges);"></div>
+                <span>Congés</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: var(--maladie); border: 1px solid #ddd;"></div>
+                <span>Maladie</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section cachée pour l'export PDF -->
+    <div class="pdf-export" id="pdf-export">
+        <div class="pdf-page" id="pdf-page-1">
+            <div class="pdf-header">
+                <h1>Planning Annuel {{year}}</h1>
+                <p>Cycle : 5 jours travail / 3 jours repos</p>
+            </div>
+            <!-- Le contenu sera généré dynamiquement -->
+        </div>
+    </div>
+    
+    <div class="modal" id="day-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-date">Modifier le jour</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            
+            <div class="color-options">
+                <div class="color-option selected" data-color="repos" style="background-color: var(--repos);"></div>
+                <div class="color-option" data-color="travail" style="background-color: var(--travail);"></div>
+                <div class="color-option" data-color="formation" style="background-color: var(--formation);"></div>
+                <div class="color-option" data-color="conges" style="background-color: var(--conges);"></div>
+                <div class="color-option" data-color="maladie" style="background-color: var(--maladie); border: 1px solid #ddd;"></div>
+            </div>
+            
+            <textarea class="notes-input" id="day-notes" placeholder="Ajouter une note..."></textarea>
+            
+            <div class="modal-actions">
+                <button id="save-day">Sauvegarder</button>
+                <button id="cancel-day">Annuler</button>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Planning Pro &copy; 2025 - Application de gestion de planning</p>
+    </footer>
+
+    <!-- Bibliothèques pour l'exportation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        // Variables globales
+        let currentYear = 2025;
+        let selectedDate = null;
+        let planningData = {};
+        
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCalendar();
+            setupEventListeners();
+            loadPlanningData();
+        });
+        
+        // Initialisation du calendrier
+        function initializeCalendar() {
+            document.getElementById('current-year').textContent = currentYear;
+            generateCalendar();
+        }
+        
+        // Configuration des écouteurs d'événements
+        function setupEventListeners() {
+            // Navigation d'année
+            document.getElementById('prev-year').addEventListener('click', () => {
+                currentYear--;
+                updateCalendar();
+            });
+            
+            document.getElementById('next-year').addEventListener('click', () => {
+                currentYear++;
+                updateCalendar();
+            });
+            
+            document.getElementById('today-btn').addEventListener('click', () => {
+                const today = new Date();
+                currentYear = today.getFullYear();
+                updateCalendar();
+            });
+            
+            // Boutons d'exportation
+            document.getElementById('export-excel').addEventListener('click', exportToExcel);
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+            document.getElementById('share-link').addEventListener('click', generateShareLink);
+            
+            // Modal
+            document.querySelector('.close-modal').addEventListener('click', closeModal);
+            document.getElementById('cancel-day').addEventListener('click', closeModal);
+            document.getElementById('save-day').addEventListener('click', saveDay);
+            
+            // Options de couleur
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+            
+            // Fermer le modal en cliquant à l'extérieur
+            document.getElementById('day-modal').addEventListener('click', function(e) {
+                if (e.target === this) closeModal();
+            });
+        }
+        
+        // Génération du calendrier
+        function generateCalendar() {
+            const calendarElement = document.getElementById('calendar');
+            calendarElement.innerHTML = '';
+            
+            for (let month = 0; month < 12; month++) {
+                const monthElement = document.createElement('div');
+                monthElement.className = 'month';
+                
+                const monthHeader = document.createElement('div');
+                monthHeader.className = 'month-header';
+                monthHeader.textContent = new Date(currentYear, month).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                monthElement.appendChild(monthHeader);
+                
+                const daysGrid = document.createElement('div');
+                daysGrid.className = 'days-grid';
+                
+                // En-têtes des jours de la semaine
+                const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+                daysOfWeek.forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.textContent = day;
+                    daysGrid.appendChild(dayHeader);
+                });
+                
+                // Jours du mois
+                const firstDay = new Date(currentYear, month, 1);
+                const lastDay = new Date(currentYear, month + 1, 0);
+                
+                // Jours vides avant le premier jour du mois
+                for (let i = 0; i < (firstDay.getDay() + 6) % 7; i++) {
+                    const emptyDay = document.createElement('div');
+                    emptyDay.className = 'day empty';
+                    daysGrid.appendChild(emptyDay);
+                }
+                
+                // Jours du mois
+                for (let day = 1; day <= lastDay.getDate(); day++) {
+                    const date = new Date(currentYear, month, day);
+                    const dateString = formatDate(date);
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'day';
+                    
+                    // Vérifier si c'est aujourd'hui
+                    const today = new Date();
+                    if (date.toDateString() === today.toDateString()) {
+                        dayElement.classList.add('today');
+                    }
+                    
+                    // Déterminer la couleur par défaut selon le cycle de 8 jours (5 travail / 3 repos)
+                    const dayStatus = getDayStatus(date);
+                    dayElement.style.backgroundColor = getColorByStatus(dayStatus);
+                    
+                    // Appliquer les données sauvegardées si elles existent
+                    if (planningData[dateString]) {
+                        dayElement.style.backgroundColor = getColorByStatus(planningData[dateString].status);
+                        if (planningData[dateString].note) {
+                            const noteElement = document.createElement('div');
+                            noteElement.className = 'day-note';
+                            noteElement.textContent = planningData[dateString].note;
+                            dayElement.appendChild(noteElement);
+                        }
+                    }
+                    
+                    // Numéro du jour
+                    dayElement.textContent = day;
+                    
+                    // Ajouter l'événement de clic
+                    dayElement.addEventListener('click', () => openDayModal(date));
+                    
+                    daysGrid.appendChild(dayElement);
+                }
+                
+                monthElement.appendChild(daysGrid);
+                calendarElement.appendChild(monthElement);
+            }
+        }
+        
+        // Mettre à jour le calendrier
+        function updateCalendar() {
+            document.getElementById('current-year').textContent = currentYear;
+            generateCalendar();
+        }
+        
+        // Ouvrir le modal de modification du jour
+        function openDayModal(date) {
+            selectedDate = date;
+            const dateString = formatDate(date);
+            
+            document.getElementById('modal-date').textContent = 
+                date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Récupérer les données existantes
+            if (planningData[dateString]) {
+                document.querySelector(`.color-option[data-color="${planningData[dateString].status}"]`).click();
+                document.getElementById('day-notes').value = planningData[dateString].note || '';
+            } else {
+                // Définir la couleur par défaut selon le cycle
+                const defaultStatus = getDayStatus(date);
+                document.querySelector(`.color-option[data-color="${defaultStatus}"]`).click();
+                document.getElementById('day-notes').value = '';
+            }
+            
+            document.getElementById('day-modal').style.display = 'flex';
+        }
+        
+        // Fermer le modal
+        function closeModal() {
+            document.getElementById('day-modal').style.display = 'none';
+        }
+        
+        // Sauvegarder les modifications du jour
+        function saveDay() {
+            if (!selectedDate) return;
+            
+            const dateString = formatDate(selectedDate);
+            const selectedColor = document.querySelector('.color-option.selected').getAttribute('data-color');
+            const note = document.getElementById('day-notes').value;
+            
+            // Sauvegarder les données
+            planningData[dateString] = {
+                status: selectedColor,
+                note: note
+            };
+            
+            // Sauvegarder dans le stockage local
+            savePlanningData();
+            
+            // Mettre à jour l'affichage
+            updateCalendar();
+            closeModal();
+        }
+        
+        // Obtenir le statut du jour selon le cycle de 8 jours (5 travail / 3 repos)
+        function getDayStatus(date) {
+            // Date de référence pour le cycle - 1er avril 2025 commence par 5 jours de travail
+            const referenceDate = new Date(2025, 3, 1); // 1er avril 2025
+            const diffTime = date - referenceDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Si la date est avant le 1er avril 2025, utiliser l'ancien cycle
+            if (diffDays < 0) {
+                // Ancien cycle: 2 jours repos, 5 jours travail, 1 jour repos
+                const oldReference = new Date(2025, 0, 1);
+                const oldDiffDays = Math.floor((date - oldReference) / (1000 * 60 * 60 * 24));
+                const oldCycleDay = oldDiffDays % 8;
+                
+                if (oldCycleDay < 2 || oldCycleDay === 7) return 'repos';
+                return 'travail';
+            }
+            
+            // Nouveau cycle à partir du 1er avril 2025: 5 jours travail, 3 jours repos
+            const cycleDay = diffDays % 8;
+            
+            if (cycleDay < 5) return 'travail'; // Jours 0-4: travail
+            return 'repos'; // Jours 5-7: repos
+        }
+        
+        // Obtenir la couleur selon le statut
+        function getColorByStatus(status) {
+            switch(status) {
+                case 'repos': return 'var(--repos)';
+                case 'travail': return 'var(--travail)';
+                case 'formation': return 'var(--formation)';
+                case 'conges': return 'var(--conges)';
+                case 'maladie': return 'var(--maladie)';
+                default: return 'var(--repos)';
+            }
+        }
+        
+        // Formater la date en chaîne de caractères
+        function formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        // Sauvegarder les données dans le stockage local
+        function savePlanningData() {
+            localStorage.setItem(`planningPro_${currentYear}`, JSON.stringify(planningData));
+        }
+        
+        // Charger les données depuis le stockage local
+        function loadPlanningData() {
+            const savedData = localStorage.getItem(`planningPro_${currentYear}`);
+            if (savedData) {
+                planningData = JSON.parse(savedData);
+            }
+        }
+        
+        // Exporter en Excel
+        function exportToExcel() {
+            // Préparer les données
+            const data = [];
+            data.push(['Date', 'Jour', 'Statut', 'Note']);
+            
+            for (let month = 0; month < 12; month++) {
+                const lastDay = new Date(currentYear, month + 1, 0).getDate();
+                
+                for (let day = 1; day <= lastDay; day++) {
+                    const date = new Date(currentYear, month, day);
+                    const dateString = formatDate(date);
+                    const dayName = date.toLocaleDateString('fr-FR', { weekday: 'long' });
+                    
+                    let status = 'Repos';
+                    let note = '';
+                    
+                    if (planningData[dateString]) {
+                        switch(planningData[dateString].status) {
+                            case 'repos': status = 'Repos'; break;
+                            case 'travail': status = 'Travail'; break;
+                            case 'formation': status = 'Formation'; break;
+                            case 'conges': status = 'Congés'; break;
+                            case 'maladie': status = 'Maladie'; break;
+                        }
+                        note = planningData[dateString].note || '';
+                    } else {
+                        // Utiliser le statut par défaut
+                        const defaultStatus = getDayStatus(date);
+                        status = defaultStatus === 'repos' ? 'Repos' : 'Travail';
+                    }
+                    
+                    data.push([
+                        dateString,
+                        dayName,
+                        status,
+                        note
+                    ]);
+                }
+            }
+            
+            // Créer le classeur
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, `Planning ${currentYear}`);
+            
+            // Exporter
+            XLSX.writeFile(wb, `planning_${currentYear}.xlsx`);
+        }
+
+        // Exporter en PDF optimisé
+        function exportToPDF() {
+            // Créer le contenu PDF optimisé
+            createPDFContent();
+            
+            // Utiliser html2canvas pour capturer le contenu PDF
+            const pdfExportElement = document.getElementById('pdf-export');
+            
+            html2canvas(pdfExportElement, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                width: pdfExportElement.scrollWidth,
+                height: pdfExportElement.scrollHeight
+            }).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Calculer les dimensions pour s'adapter à la page A4
+                const pageWidth = 210;
+                const pageHeight = 297;
+                const imgWidth = pageWidth - 20; // Marge de 10mm de chaque côté
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                let heightLeft = imgHeight;
+                let position = 10; // Position verticale initiale
+                let pageNumber = 1;
+                
+                // Ajouter la première page
+                pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                
+                // Ajouter des pages supplémentaires si nécessaire
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight + 10;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                    pageNumber++;
+                }
+                
+                // Sauvegarder le PDF
+                pdf.save(`planning_${currentYear}.pdf`);
+            });
+        }
+
+        // Créer le contenu optimisé pour le PDF
+        function createPDFContent() {
+            const pdfExport = document.getElementById('pdf-export');
+            pdfExport.innerHTML = '';
+            
+            // Créer les pages PDF (3 mois par page)
+            for (let page = 0; page < 4; page++) {
+                const pdfPage = document.createElement('div');
+                pdfPage.className = 'pdf-page';
+                pdfPage.id = `pdf-page-${page + 1}`;
+                
+                // En-tête de page
+                const pdfHeader = document.createElement('div');
+                pdfHeader.className = 'pdf-header';
+                pdfHeader.innerHTML = `
+                    <h1>Planning Annuel ${currentYear}</h1>
+                    <p>Cycle : 5 jours travail / 3 jours repos - Page ${page + 1}/4</p>
+                `;
+                pdfPage.appendChild(pdfHeader);
+                
+                // Grille de calendrier (3 mois par page)
+                const pdfCalendar = document.createElement('div');
+                pdfCalendar.className = 'pdf-calendar';
+                
+                for (let i = 0; i < 3; i++) {
+                    const monthIndex = page * 3 + i;
+                    if (monthIndex >= 12) break;
+                    
+                    const pdfMonth = document.createElement('div');
+                    pdfMonth.className = 'pdf-month';
+                    
+                    // En-tête du mois
+                    const pdfMonthHeader = document.createElement('div');
+                    pdfMonthHeader.className = 'pdf-month-header';
+                    pdfMonthHeader.textContent = new Date(currentYear, monthIndex).toLocaleDateString('fr-FR', { 
+                        month: 'long', 
+                        year: 'numeric' 
+                    });
+                    pdfMonth.appendChild(pdfMonthHeader);
+                    
+                    // Grille des jours
+                    const pdfDaysGrid = document.createElement('div');
+                    pdfDaysGrid.className = 'pdf-days-grid';
+                    
+                    // En-têtes des jours de la semaine
+                    const daysOfWeek = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+                    daysOfWeek.forEach(day => {
+                        const dayHeader = document.createElement('div');
+                        dayHeader.className = 'pdf-day';
+                        dayHeader.style.background = '#f8f9fa';
+                        dayHeader.style.fontWeight = 'bold';
+                        dayHeader.textContent = day;
+                        pdfDaysGrid.appendChild(dayHeader);
+                    });
+                    
+                    // Jours du mois
+                    const firstDay = new Date(currentYear, monthIndex, 1);
+                    const lastDay = new Date(currentYear, monthIndex + 1, 0);
+                    
+                    // Jours vides avant le premier jour du mois
+                    for (let j = 0; j < (firstDay.getDay() + 6) % 7; j++) {
+                        const emptyDay = document.createElement('div');
+                        emptyDay.className = 'pdf-day';
+                        emptyDay.style.background = 'transparent';
+                        emptyDay.style.border = 'none';
+                        pdfDaysGrid.appendChild(emptyDay);
+                    }
+                    
+                    // Jours du mois
+                    for (let day = 1; day <= lastDay.getDate(); day++) {
+                        const date = new Date(currentYear, monthIndex, day);
+                        const dateString = formatDate(date);
+                        const pdfDay = document.createElement('div');
+                        pdfDay.className = 'pdf-day';
+                        
+                        // Déterminer la couleur
+                        let backgroundColor = getColorByStatus(getDayStatus(date));
+                        if (planningData[dateString]) {
+                            backgroundColor = getColorByStatus(planningData[dateString].status);
+                        }
+                        
+                        pdfDay.style.background = backgroundColor;
+                        
+                        // Numéro du jour
+                        const dayNumber = document.createElement('div');
+                        dayNumber.className = 'pdf-day-number';
+                        dayNumber.textContent = day;
+                        pdfDay.appendChild(dayNumber);
+                        
+                        // Note si elle existe
+                        if (planningData[dateString] && planningData[dateString].note) {
+                            const dayNote = document.createElement('div');
+                            dayNote.className = 'pdf-day-note';
+                            dayNote.textContent = planningData[dateString].note;
+                            pdfDay.appendChild(dayNote);
+                        }
+                        
+                        pdfDaysGrid.appendChild(pdfDay);
+                    }
+                    
+                    pdfMonth.appendChild(pdfDaysGrid);
+                    pdfCalendar.appendChild(pdfMonth);
+                }
+                
+                pdfPage.appendChild(pdfCalendar);
+                
+                // Légende sur la première page seulement
+                if (page === 0) {
+                    const pdfLegend = document.createElement('div');
+                    pdfLegend.className = 'pdf-legend';
+                    pdfLegend.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="width: 12px; height: 12px; background: var(--repos); border-radius: 2px;"></div>
+                            <span>Repos</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="width: 12px; height: 12px; background: var(--travail); border-radius: 2px;"></div>
+                            <span>Travail</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="width: 12px; height: 12px; background: var(--formation); border-radius: 2px;"></div>
+                            <span>Formation</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="width: 12px; height: 12px; background: var(--conges); border-radius: 2px;"></div>
+                            <span>Congés</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="width: 12px; height: 12px; background: var(--maladie); border: 1px solid #ddd; border-radius: 2px;"></div>
+                            <span>Maladie</span>
+                        </div>
+                    `;
+                    pdfPage.appendChild(pdfLegend);
+                }
+                
+                pdfExport.appendChild(pdfPage);
+            }
+        }
+        
+        // Générer un lien de partage
+        function generateShareLink() {
+            // Dans une application réelle, cela enverrait les données à un serveur
+            // et retournerait un lien unique
+            alert('Fonctionnalité de partage - Dans une version complète, cela générerait un lien partageable.');
+        }
+    </script>
+</body>
+</html>
